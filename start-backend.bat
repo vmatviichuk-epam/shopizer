@@ -20,11 +20,23 @@ echo Java version detected:
 java -version 2>&1 | findstr /i "version"
 echo.
 
-REM Navigate to sm-shop directory and start the server
-echo Starting the server (skipping tests for faster startup)...
+REM Build all modules first (required for multi-module project)
+echo Building project modules (skipping tests for faster startup)...
 echo This may take a few moments on first run...
 echo.
 
+call mvnw.cmd clean install -DskipTests
+if %errorlevel% neq 0 (
+    echo Error: Build failed
+    pause
+    exit /b 1
+)
+
+echo.
+echo Build successful! Starting the server...
+echo.
+
+REM Navigate to sm-shop directory and start the server
 cd sm-shop
 if %errorlevel% neq 0 (
     echo Error: Could not find sm-shop directory

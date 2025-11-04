@@ -18,11 +18,24 @@ try {
     exit 1
 }
 
-# Navigate to sm-shop directory and start the server
-Write-Host "Starting the server (skipping tests for faster startup)..." -ForegroundColor Yellow
+# Build all modules first (required for multi-module project)
+Write-Host "Building project modules (skipping tests for faster startup)..." -ForegroundColor Yellow
 Write-Host "This may take a few moments on first run..." -ForegroundColor Yellow
 Write-Host ""
 
+& .\mvnw.cmd clean install -DskipTests
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Error: Build failed" -ForegroundColor Red
+    Read-Host "Press Enter to exit"
+    exit 1
+}
+
+Write-Host ""
+Write-Host "Build successful! Starting the server..." -ForegroundColor Green
+Write-Host ""
+
+# Navigate to sm-shop directory and start the server
 Push-Location sm-shop
 
 if ($LASTEXITCODE -ne 0) {

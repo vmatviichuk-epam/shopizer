@@ -56,11 +56,12 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 ### Start Scripts
 1. Check if Java is installed
 2. Display Java version
-3. Navigate to the `sm-shop` directory
-4. Start the Spring Boot application (with tests skipped for faster startup)
-5. Initialize the database with sample data (on first run)
+3. Build all project modules (with tests skipped for faster startup)
+4. Navigate to the `sm-shop` directory
+5. Start the Spring Boot application
+6. Initialize the database with sample data (on first run)
 
-**Note:** The scripts use `-DskipTests` to skip tests during startup for optimal local development speed.
+**Note:** The scripts build all modules first using `mvn clean install -DskipTests` because this is a multi-module Maven project. Each module (sm-core, sm-core-model, sm-shop-model, sm-shop) needs to be compiled and installed to your local Maven repository before the application can run.
 
 ### Stop Scripts
 1. Find running Shopizer server processes

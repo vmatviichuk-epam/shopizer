@@ -24,11 +24,18 @@ if [ "$JAVA_VERSION" -lt 11 ]; then
     echo ""
 fi
 
-# Navigate to sm-shop directory and start the server
-echo "Starting the server (skipping tests for faster startup)..."
+# Build all modules first (required for multi-module project)
+echo "Building project modules (skipping tests for faster startup)..."
 echo "This may take a few moments on first run..."
 echo ""
 
+./mvnw clean install -DskipTests || exit 1
+
+echo ""
+echo "Build successful! Starting the server..."
+echo ""
+
+# Navigate to sm-shop directory and start the server
 cd sm-shop || exit 1
 ../mvnw spring-boot:run -DskipTests
 

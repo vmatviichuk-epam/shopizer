@@ -1,6 +1,44 @@
 # Troubleshooting Guide
 
-## Maven Build Failures on Windows
+## Maven Build Failures
+
+### Issue: "Could not find artifact com.shopizer:sm-core:jar" error
+
+**Error Message:**
+```
+[ERROR] Could not resolve dependencies for project com.shopizer:sm-shop:jar:3.2.5:
+The following artifacts could not be resolved: com.shopizer:sm-core:jar:3.2.5,
+com.shopizer:sm-core-model:jar:3.2.5, com.shopizer:sm-shop-model:jar:3.2.5
+```
+
+**Root Cause:**
+This is a multi-module Maven project. The internal modules (sm-core, sm-core-model, sm-shop-model) need to be built and installed to your local Maven repository before the main application (sm-shop) can run.
+
+**Fix:**
+Always build all modules first before running the application:
+
+**Windows (CMD):**
+```cmd
+mvnw.cmd clean install -DskipTests
+cd sm-shop
+..\mvnw.cmd spring-boot:run -DskipTests
+```
+
+**Windows (PowerShell):**
+```powershell
+.\mvnw.cmd clean install -DskipTests
+cd sm-shop
+..\mvnw.cmd spring-boot:run -DskipTests
+```
+
+**Mac/Linux:**
+```bash
+./mvnw clean install -DskipTests
+cd sm-shop
+../mvnw spring-boot:run -DskipTests
+```
+
+**Note:** The startup scripts now handle this automatically by building all modules before starting the server.
 
 ### Issue: "Not authorized" error when downloading dependencies
 
