@@ -21,7 +21,7 @@ java -version 2>&1 | findstr /i "version"
 echo.
 
 REM Navigate to sm-shop directory and start the server
-echo Building and starting the server...
+echo Starting the server (skipping tests for faster startup)...
 echo This may take a few moments on first run...
 echo.
 
@@ -32,7 +32,7 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-call ..\mvnw.cmd spring-boot:run
+call ..\mvnw.cmd spring-boot:run -DskipTests
 
 REM If the server stops, show this message
 echo.

@@ -25,12 +25,12 @@ if [ "$JAVA_VERSION" -lt 11 ]; then
 fi
 
 # Navigate to sm-shop directory and start the server
-echo "Building and starting the server..."
+echo "Starting the server (skipping tests for faster startup)..."
 echo "This may take a few moments on first run..."
 echo ""
 
 cd sm-shop || exit 1
-../mvnw spring-boot:run
+../mvnw spring-boot:run -DskipTests
 
 # If the server stops, show this message
 echo ""

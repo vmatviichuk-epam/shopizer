@@ -19,7 +19,7 @@ try {
 }
 
 # Navigate to sm-shop directory and start the server
-Write-Host "Building and starting the server..." -ForegroundColor Yellow
+Write-Host "Starting the server (skipping tests for faster startup)..." -ForegroundColor Yellow
 Write-Host "This may take a few moments on first run..." -ForegroundColor Yellow
 Write-Host ""
 
@@ -31,7 +31,7 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-& ..\mvnw.cmd spring-boot:run
+& ..\mvnw.cmd spring-boot:run -DskipTests
 
 Pop-Location
 

@@ -57,8 +57,10 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 1. Check if Java is installed
 2. Display Java version
 3. Navigate to the `sm-shop` directory
-4. Build and start the Spring Boot application
+4. Start the Spring Boot application (with tests skipped for faster startup)
 5. Initialize the database with sample data (on first run)
+
+**Note:** The scripts use `-DskipTests` to skip tests during startup for optimal local development speed.
 
 ### Stop Scripts
 1. Find running Shopizer server processes
@@ -84,8 +86,10 @@ To use MySQL instead:
 
 ## Startup Time
 
-- **First run:** 30-60 seconds (includes building and initializing database)
-- **Subsequent runs:** 20-30 seconds
+The scripts are optimized for quick local development (tests are skipped):
+
+- **First run:** 20-30 seconds (includes compiling and initializing database)
+- **Subsequent runs:** 15-20 seconds
 
 ## Troubleshooting
 
@@ -118,6 +122,12 @@ If you prefer to run commands manually:
 ```
 
 **Start the server:**
+```bash
+cd sm-shop
+../mvnw spring-boot:run -DskipTests
+```
+
+**Start with tests:**
 ```bash
 cd sm-shop
 ../mvnw spring-boot:run
