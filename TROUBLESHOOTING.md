@@ -10,7 +10,13 @@
 Failed to transfer artifact from/to spring-releases (https://repo.spring.io/libs-release): Not authorized
 ```
 
-### Solutions:
+**Root Cause:**
+Spring has deprecated their old `repo.spring.io/libs-release` repository. All Spring release artifacts are now hosted on Maven Central.
+
+**Fix Applied:**
+The project's `pom.xml` has been updated to remove references to the deprecated Spring repository. Maven now uses Maven Central by default for all Spring dependencies.
+
+### Solutions (if issue persists):
 
 #### 1. Clear Maven Cache and Retry
 
