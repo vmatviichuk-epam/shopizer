@@ -9,6 +9,8 @@ This guide explains how to start and stop the Shopizer backend server using the 
 
 ## Quick Start
 
+All scripts are located in the project root directory.
+
 ### Mac / Linux
 
 **Start the server:**
