@@ -36,10 +36,11 @@ Write-Host "Build successful! Starting the server..." -ForegroundColor Green
 Write-Host ""
 
 # Navigate to sm-shop directory and start the server
-Push-Location sm-shop
-
-if ($LASTEXITCODE -ne 0) {
+try {
+    Push-Location sm-shop -ErrorAction Stop
+} catch {
     Write-Host "Error: Could not find sm-shop directory" -ForegroundColor Red
+    Write-Host "Current location: $(Get-Location)" -ForegroundColor Yellow
     Read-Host "Press Enter to exit"
     exit 1
 }
