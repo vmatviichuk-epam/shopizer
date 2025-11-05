@@ -6,7 +6,7 @@ Shopizer implements a JWT (JSON Web Token) based authentication system with sepa
 - **Admin Users**: Backend administrators with role-based permissions
 - **Customers**: Frontend shop customers with order and account management capabilities
 
-The authentication system uses Spring Security with custom JWT token management, providing stateless authentication for REST API endpoints. **Enhanced password policy enforcement** includes complexity requirements, password history tracking, periodic renewal (6-month expiration), and mandatory password change flows for policy violations.
+The authentication system uses Spring Security with custom JWT token management, providing stateless authentication for REST API endpoints.
 
 ---
 
@@ -75,13 +75,6 @@ graph TD
     W --> X[SecurityContext]
     X --> Y[Protected Resource]
 
-    %% Password policy components
-    K --> PP[PasswordPolicyService]
-    PP --> PH[(Password History DB)]
-    PP --> PV[PasswordValidator]
-
-    C --> PC[PasswordChangeController]
-    PC --> PP
 
 ```
 
@@ -98,9 +91,6 @@ graph TD
 | **MultipleEntryPointsSecurityConfig** | `sm-shop/application/config/` | Spring Security configuration |
 | **JWTAdminServicesImpl** | `sm-shop/store/security/admin/` | User details service for admin users |
 | **JWTCustomerServicesImpl** | `sm-shop/store/security/customer/` | User details service for customers |
-| **PasswordPolicyService** | `sm-core/business/services/user/` | Password policy enforcement and history management |
-| **PasswordValidator** | `sm-shop/validation/` | Real-time password complexity validation |
-| **PasswordChangeController** | `sm-shop/store/api/v1/user/` | Mandatory password change endpoint |
 
 ---
 
@@ -157,22 +147,6 @@ sequenceDiagram
         AuthAPI-->>Client: 401 {"message":"Bad credentials"}
     end
 
-    AuthProvider->>DB: Check last_password_update
-    DB-->>AuthProvider: lastPasswordUpdate date
-
-    alt Legacy User (lastPasswordUpdate == null)
-        Note over AuthProvider: Skip expiration check<br/>Allow login
-    else Password Expired (>6 months)
-        AuthProvider-->>AuthAPI: PasswordExpiredException
-        AuthAPI-->>Client: 403 {"requiresPasswordChange": true}
-    else Password Doesn't Meet Policy
-        AuthProvider->>DB: Check password complexity
-        alt Complexity Check Fails
-            AuthProvider-->>AuthAPI: PasswordPolicyException
-            AuthAPI-->>Client: 403 {"requiresPasswordChange": true}
-        end
-    end
-
     AuthProvider-->>AuthMgr: Authentication object
     AuthMgr-->>AuthAPI: Authentication successful
 
@@ -199,15 +173,8 @@ sequenceDiagram
 4. **Permission Loading**: Loads user groups and associated permissions
 5. **Authority Mapping**: Converts permissions to Spring Security `GrantedAuthority` objects
 6. **Password Validation**: BCrypt password encoder validates credentials
-
-7. **Password Policy Check**:
-   - Check if user is legacy user (`last_password_update` is null) - if yes, skip expiration check
-   - Check if password is expired (>6 months since last update)
-   - Check if password meets complexity requirements (for non-legacy users)
-   - If violations found, return 403 with `requiresPasswordChange: true`
-
-8. **JWT Generation**: `JWTTokenUtil.generateToken()` creates signed JWT token
-9. **Response**: Returns `AuthenticationResponse` with user ID and JWT token
+7. **JWT Generation**: `JWTTokenUtil.generateToken()` creates signed JWT token
+8. **Response**: Returns `AuthenticationResponse` with user ID and JWT token
 
 **Key Code Reference:**
 - Controller: `AuthenticateUserApi.java:66-104`
@@ -264,16 +231,6 @@ sequenceDiagram
         AuthAPI-->>Client: 401 Unauthorized
     end
 
-    AuthMgr->>DB: Check last_password_update
-    DB-->>AuthMgr: lastPasswordUpdate date
-
-    alt Legacy User (lastPasswordUpdate == null)
-        Note over AuthMgr: Skip expiration check<br/>Allow login
-    else Password Expired (>6 months)
-        AuthMgr-->>AuthAPI: PasswordExpiredException
-        AuthAPI-->>Client: 403 {"requiresPasswordChange": true, "reason": "expired"}
-    end
-
     AuthMgr-->>AuthAPI: Authentication successful
 
     AuthAPI->>AuthAPI: Set SecurityContext
@@ -296,92 +253,13 @@ sequenceDiagram
 4. **Permission Loading**: Loads customer groups and permissions
 5. **Authority Mapping**: Adds `ROLE_AUTH_CUSTOMER` and permission-based authorities
 6. **Password Validation**: BCrypt password encoder validates credentials
-
-7. **Password Policy Check**:
-   - Check if customer is legacy user (`last_password_update` is null) - if yes, skip expiration check
-   - Check if password is expired (>6 months since last update) for non-legacy users
-   - If expired, return 403 with `requiresPasswordChange: true` and `reason: "expired"`
-
-8. **JWT Generation**: `JWTTokenUtil.generateToken()` creates signed JWT token
-9. **Response**: Returns `AuthenticationResponse` with customer ID and JWT token
+7. **JWT Generation**: `JWTTokenUtil.generateToken()` creates signed JWT token
+8. **Response**: Returns `AuthenticationResponse` with customer ID and JWT token
 
 **Key Code Reference:**
 - Controller: `AuthenticateCustomerApi.java:157-196`
 - User Service: `AbstractCustomerServices.java:50-94`
 - JWT User Factory: `JWTCustomerServicesImpl.java:34-54`
-
----
-
-### Password Policy Enforcement Flow
-
-This diagram illustrates the complete password policy enforcement flow, including mandatory password change for expired or non-compliant passwords.
-
-```mermaid
-sequenceDiagram
-    participant Client
-    participant LoginAPI as Login API
-    participant PolicySvc as PasswordPolicyService
-    participant DB as Database
-    participant ChangeAPI as Password Change API
-    participant Validator as PasswordValidator
-    participant HistorySvc as PasswordHistoryService
-
-    Client->>LoginAPI: Login with credentials
-    LoginAPI->>PolicySvc: checkPasswordPolicy(user)
-    PolicySvc->>DB: Get last_password_update
-    DB-->>PolicySvc: lastPasswordUpdate
-
-    alt Legacy User (lastPasswordUpdate == null)
-        PolicySvc-->>LoginAPI: Policy check passed
-        LoginAPI-->>Client: 200 OK + Token
-    else Password Expired
-        PolicySvc-->>LoginAPI: PasswordExpiredException
-        LoginAPI-->>Client: 403 {"requiresPasswordChange": true}
-
-        Client->>ChangeAPI: GET /mandatory-password-change
-        ChangeAPI-->>Client: Mandatory change form
-
-        Client->>ChangeAPI: POST new password
-        ChangeAPI->>Validator: validatePassword(newPassword)
-
-        alt Validation Failed
-            Validator-->>ChangeAPI: Validation errors
-            ChangeAPI-->>Client: 400 + Error details
-        end
-
-        ChangeAPI->>HistorySvc: checkPasswordHistory(user, newPassword)
-        HistorySvc->>DB: Get last 5 password hashes
-        DB-->>HistorySvc: Password history
-
-        alt Password in history
-            HistorySvc-->>ChangeAPI: Password reused
-            ChangeAPI-->>Client: 400 "Cannot reuse last 5 passwords"
-        end
-
-        ChangeAPI->>DB: Update password
-        ChangeAPI->>DB: Set last_password_update = now()
-        ChangeAPI->>DB: Set password_expiration = now() + 6 months
-        ChangeAPI->>HistorySvc: addToHistory(user, passwordHash)
-        HistorySvc->>DB: Insert password history
-        HistorySvc->>DB: Keep only last 5 entries
-
-        ChangeAPI->>ChangeAPI: Log password change event
-        ChangeAPI->>ChangeAPI: Send confirmation notification
-        ChangeAPI-->>Client: 200 OK
-
-        Client->>LoginAPI: Re-login with new password
-        LoginAPI-->>Client: 200 OK + Token
-    end
-```
-
-**Key Features:**
-
-1. **Legacy User Support**: Users with `last_password_update = null` skip expiration checks
-2. **6-Month Expiration**: Enforced for all users who have changed password at least once
-3. **Password History**: Prevents reuse of last 5 passwords
-4. **Real-time Validation**: Client-side and server-side password complexity checks
-5. **Audit Logging**: All password changes are logged with timestamp and user ID
-6. **Notifications**: Users receive confirmation after successful password change
 
 ---
 
@@ -412,11 +290,6 @@ sequenceDiagram
         AuthAPI-->>Client: 409 Conflict<br/>"Customer already registered"
     end
 
-    AuthAPI->>AuthAPI: Validate password complexity
-    alt Password validation fails
-        AuthAPI-->>Client: 400 Bad Request + Validation errors
-    end
-
     AuthAPI->>AuthAPI: Validate customer data
 
     alt Validation fails
@@ -426,10 +299,6 @@ sequenceDiagram
     AuthAPI->>CustomerFacade: registerCustomer(customer, store, lang)
     CustomerFacade->>CustomerSvc: Save customer
     CustomerSvc->>CustomerSvc: Hash password (BCrypt)
-
-    CustomerSvc->>DB: Set last_password_update = null (for legacy support)
-    CustomerSvc->>DB: Initialize empty password_history
-
     CustomerSvc->>DB: Insert customer record
     DB-->>CustomerSvc: Customer entity
     CustomerSvc-->>CustomerFacade: Saved customer
@@ -452,24 +321,11 @@ sequenceDiagram
 
 1. **Request**: Client sends POST to `/api/v1/customer/register` with customer details
 2. **Validation**: Check if user already exists by email
-
-
-3. **Password Complexity Validation**: Validate password meets all complexity requirements before registration
-
-
-4. **Registration**: `customerFacade.registerCustomer()` creates new customer account
-5. **Password Hashing**: Password is hashed using BCrypt before storage
-
-
-6. **Initialize Password Tracking**:
-   - Set `last_password_update = null` to mark as legacy user (exempted from expiration)
-   - Initialize empty password history
-   - User will be subject to full policy enforcement only after their first password change
-
-
-7. **Auto-Login**: Automatically authenticate the newly registered customer
-8. **JWT Generation**: Generate JWT token for immediate access
-9. **Response**: Returns `AuthenticationResponse` with HTTP 201 Created
+3. **Registration**: `customerFacade.registerCustomer()` creates new customer account
+4. **Password Hashing**: Password is hashed using BCrypt before storage
+5. **Auto-Login**: Automatically authenticate the newly registered customer
+6. **JWT Generation**: Generate JWT token for immediate access
+7. **Response**: Returns `AuthenticationResponse` with HTTP 201 Created
 
 **Key Code Reference:**
 - Controller: `AuthenticateCustomerApi.java:94-148`
@@ -511,25 +367,6 @@ Authenticates an admin user and returns a JWT token.
   ```
 - `404 Not Found`: User not found or authentication failed
 
-
-- `403 Forbidden`: Password change required
-  ```json
-  {
-    "requiresPasswordChange": true,
-    "reason": "expired",
-    "message": "Your password has expired. Please change your password."
-  }
-  ```
-  or
-  ```json
-  {
-    "requiresPasswordChange": true,
-    "reason": "policy_violation",
-    "message": "Your password does not meet current security requirements."
-  }
-  ```
-
-
 **Security:**
 - URL Pattern: `/api/v*/private/login*` (permitAll)
 - No authentication required for this endpoint
@@ -570,112 +407,6 @@ Authorization: Bearer <existing-jwt-token>
 
 ---
 
-
-### Password Change Endpoints
-
-#### GET `/api/v1/auth/mandatory-password-change`
-
-Displays the mandatory password change interface when policy violations are detected.
-
-**Request Headers:**
-```
-Authorization: Bearer <existing-jwt-token>
-```
-
-**Response (200 OK):**
-Returns HTML form or redirects to password change UI
-
-**UI Requirements:**
-- New Password field (password input with show/hide toggle)
-- Repeat New Password field (password input with show/hide toggle)
-- Next button (enabled only when both fields are valid and match)
-- Logout button (positioned to the left of Next button)
-- Password requirements tooltip (always visible or accessible via info icon)
-
-**Password Requirements Tooltip:**
-```
-Password Requirements:
-✓ At least 8 characters long
-✓ Contains at least 1 lowercase letter (a-z)
-✓ Contains at least 1 uppercase letter (A-Z)
-✓ Contains at least 1 number (0-9)
-✓ Contains at least 1 special character (!@#$%^&*()_+-=[]{}|;:,.<>?)
-✓ Cannot be one of your last 5 passwords
-```
-
-**Security:**
-- URL Pattern: `/api/v*/auth/mandatory-password-change` (authenticated users only)
-- Users cannot access other functionality until password is changed
-- Session remains active to allow password change
-
----
-
-#### POST `/api/v1/auth/change-password`
-
-Changes a user's password with policy enforcement.
-
-**Request:**
-```json
-{
-  "username": "user@example.com",
-  "newPassword": "NewSecurePass123!",
-  "repeatPassword": "NewSecurePass123!"
-}
-```
-
-**Response (200 OK):**
-```json
-{
-  "success": true,
-  "message": "Password changed successfully"
-}
-```
-
-**Error Responses:**
-
-- `400 Bad Request`: Password doesn't meet complexity requirements
-  ```json
-  {
-    "errors": [
-      {
-        "field": "password",
-        "message": "Password must contain at least one uppercase letter"
-      }
-    ]
-  }
-  ```
-
-- `400 Bad Request`: Password in history
-  ```json
-  {
-    "error": "password_reused",
-    "message": "You cannot reuse any of your last 5 passwords"
-  }
-  ```
-
-- `400 Bad Request`: Passwords don't match
-  ```json
-  {
-    "error": "password_mismatch",
-    "message": "New password and repeat password do not match"
-  }
-  ```
-
-**Security:**
-- Requires authentication
-- Validates password complexity in real-time
-- Checks against password history (last 5 passwords)
-- Updates `last_password_update` timestamp
-- Sets `password_expiration` to 6 months from change date
-- Adds password hash to password history (maintaining only last 5)
-- Logs password change event
-- Sends confirmation notification to user
-
-**Code Reference:** `PasswordChangeController.java` *(to be implemented)*
-
-
----
-
 ### Customer Authentication Endpoints
 
 
@@ -707,28 +438,12 @@ Authenticates a customer and returns a JWT token.
   ```json
   {"message": "Bad credentials"}
   ```
-
-
-- `403 Forbidden`: Password change required
-  ```json
-  {
-    "requiresPasswordChange": true,
-    "reason": "expired",
-    "message": "Your password has expired. Please change your password to continue."
-  }
-  ```
-
-
 - `500 Internal Server Error`: System error during authentication
 
 **Security:**
 - URL Pattern: `/api/v*/customer/login` (mapped to customer authentication realm)
 - Username is typically the customer's email address
 - Password validation uses BCrypt
-
-
-- Password expiration checked for non-legacy users (where `last_password_update` is not null)
-
 
 **Code Reference:** `AuthenticateCustomerApi.java:157`
 
@@ -767,51 +482,17 @@ Registers a new customer and automatically authenticates them.
   ```json
   "Customer with email [newcustomer@example.com] is already registered"
   ```
-
-
-- `400 Bad Request`: Password validation errors *(Enhanced)*
-  ```json
-  {
-    "errors": [
-      {
-        "field": "password",
-        "code": "INSUFFICIENT_UPPERCASE",
-        "message": "Password must contain at least 1 uppercase character"
-      },
-      {
-        "field": "password",
-        "code": "INSUFFICIENT_DIGIT",
-        "message": "Password must contain at least 1 digit"
-      }
-    ]
-  }
-  ```
-
-
 - `400 Bad Request`: Validation errors (missing required fields)
 
 **Validation Requirements:**
 - `userName` (auto-set to emailAddress): Required
 - `billing.country`: Required
-
-
-- `password`: Required, must meet complexity requirements *(Enhanced)*:
-  - Minimum 8 characters
-  - At least 1 lowercase letter (a-z)
-  - At least 1 uppercase letter (A-Z)
-  - At least 1 number (0-9)
-  - At least 1 special character (!@#$%^&*()_+-=[]{}|;:,.<>?)
-
+- `password`: Required (validated by Passay rules)
 
 **Security:**
 - URL Pattern: `/api/v*/auth/register` (permitAll)
 - Automatically creates user with `ROLE_AUTH_CUSTOMER`
 - Password is hashed before storage
-
-
-- New users are created with `last_password_update = null` (legacy user status for backward compatibility)
-- Full password policy enforcement applies only after first password change
-
 
 **Code Reference:** `AuthenticateCustomerApi.java:94`
 
@@ -840,41 +521,10 @@ Void
 - `404 Not Found`: Customer not found
 - `400 Bad Request`: Password mismatch or validation error
 
-
-- `400 Bad Request`: Password in history
-  ```json
-  {
-    "error": "password_reused",
-    "message": "You cannot reuse any of your last 5 passwords"
-  }
-  ```
-
-- `400 Bad Request`: Password complexity violation
-  ```json
-  {
-    "errors": [
-      {
-        "field": "password",
-        "message": "Password must contain at least one special character"
-      }
-    ]
-  }
-  ```
-
-
 **Security:**
 - Requires authentication
 - Validates current password before allowing change
 - New password must match repeat password
-
-
-- Validates password complexity
-- Checks password history (last 5 passwords)
-- Updates `last_password_update` timestamp
-- Sets `password_expiration` to 6 months from change
-- Logs password change event
-- Sends confirmation notification
-
 
 **Code Reference:** `AuthenticateCustomerApi.java:215`
 
@@ -1012,40 +662,6 @@ public static class CustomeApiConfigurationAdapter extends WebSecurityConfigurer
 - JWT token filter validates customer tokens
 - CORS support with OPTIONS method
 
-
-#### 5. Password Policy Configuration (Order: 4)
-
-```java
-@Configuration
-@Order(4)
-public static class PasswordPolicyConfigurationAdapter extends WebSecurityConfigurerAdapter {
-
-    @Override
-    protected void configure(HttpSecurity http) throws Exception {
-        http
-            .antMatcher("/api/v*/auth/**")
-            .authorizeRequests()
-                .antMatchers("/api/v*/auth/mandatory-password-change").authenticated()
-                .antMatchers("/api/v*/auth/change-password").authenticated()
-            .and()
-                .addFilterAfter(passwordPolicyEnforcementFilter, AuthenticationTokenFilter.class)
-                .csrf().disable();
-    }
-
-    @Bean
-    public PasswordPolicyEnforcementFilter passwordPolicyEnforcementFilter() {
-        return new PasswordPolicyEnforcementFilter(passwordPolicyService);
-    }
-}
-```
-
-**Key Features:**
-- Password change endpoints require authentication
-- Password policy enforcement filter checks expiration on protected resource access
-- Redirects to mandatory password change when violations detected
-- Allows logout even when password change is required
-
-
 **Code Reference:** `MultipleEntryPointsSecurityConfig.java:285-424`
 
 
@@ -1110,94 +726,6 @@ protected void doFilterInternal(HttpServletRequest request,
 - Filter: `AuthenticationTokenFilter.java:50-126`
 - Admin Manager: `JWTAdminAuthenticationManager.java:36-78`
 
-
-
----
-
-
-### Password Policy Enforcement Filter
-
-The `PasswordPolicyEnforcementFilter` enforces password expiration and complexity requirements on every protected resource access.
-
-**Filter Logic:**
-
-```java
-@Component
-public class PasswordPolicyEnforcementFilter extends OncePerRequestFilter {
-
-    @Inject
-    private PasswordPolicyService passwordPolicyService;
-
-    @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                     HttpServletResponse response,
-                                     FilterChain filterChain) throws ServletException, IOException {
-
-        // Skip filter for public endpoints
-        String requestUri = request.getRequestURI();
-        if (isPublicEndpoint(requestUri)) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        // Get authenticated user
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        JWTUser user = (JWTUser) authentication.getPrincipal();
-
-        // Check password policy
-        PasswordPolicyStatus status = passwordPolicyService.checkPolicy(user);
-
-        if (status.isLegacyUser()) {
-            // Legacy users (last_password_update == null) are exempt
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        if (status.isExpired()) {
-            // Redirect to mandatory password change
-            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            response.setContentType("application/json");
-            response.getWriter().write("{\"requiresPasswordChange\": true, \"reason\": \"expired\"}");
-            return;
-        }
-
-        if (status.violatesComplexity()) {
-            // Redirect to mandatory password change
-            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            response.setContentType("application/json");
-            response.getWriter().write("{\"requiresPasswordChange\": true, \"reason\": \"policy_violation\"}");
-            return;
-        }
-
-        // Password policy satisfied, continue
-        filterChain.doFilter(request, response);
-    }
-
-    private boolean isPublicEndpoint(String uri) {
-        return uri.contains("/login") ||
-               uri.contains("/register") ||
-               uri.contains("/mandatory-password-change") ||
-               uri.contains("/change-password") ||
-               uri.contains("/logout");
-    }
-}
-```
-
-**Policy Check Process:**
-
-1. **Skip Public Endpoints**: Login, register, and password change endpoints bypass the filter
-2. **Get Authenticated User**: Extract user from SecurityContext
-3. **Check Legacy Status**: Users with `last_password_update = null` skip all policy checks
-4. **Check Expiration**: Verify password is not older than 6 months
-5. **Check Complexity**: For non-legacy users, verify password meets current complexity requirements
-6. **Enforce or Allow**: Redirect to mandatory password change or allow access
-
-**Code Reference:** `PasswordPolicyEnforcementFilter.java` *(to be implemented)*
 
 
 ---
@@ -1474,102 +1002,6 @@ public class AuthenticationResponse extends Entity implements Serializable {
 
 ---
 
-
-### PasswordChangeRequest
-
-**Password Change Request Model**: Used for mandatory and voluntary password changes.
-
-```java
-public class PasswordChangeRequest implements Serializable {
-
-    @NotEmpty(message="Username is required")
-    private String username;
-
-    @NotEmpty(message="New password is required")
-    @PasswordComplexity
-    private String newPassword;
-
-    @NotEmpty(message="Repeat password is required")
-    private String repeatPassword;
-
-    private String currentPassword; // Optional, required for voluntary changes
-
-    // Constructors, getters, setters...
-}
-```
-
-**Validation:**
-- `username`: Required
-- `newPassword`: Required, must meet complexity requirements
-- `repeatPassword`: Required, must match newPassword
-- `currentPassword`: Required for voluntary password changes, not required for mandatory changes
-
-**Password Complexity Validation (@PasswordComplexity):**
-- Minimum 8 characters
-- At least 1 lowercase letter (a-z)
-- At least 1 uppercase letter (A-Z)
-- At least 1 number (0-9)
-- At least 1 special character (!@#$%^&*()_+-=[]{}|;:,.<>?)
-
-**Example:**
-```json
-{
-  "username": "user@example.com",
-  "newPassword": "NewSecure123!",
-  "repeatPassword": "NewSecure123!",
-  "currentPassword": "OldPassword123"
-}
-```
-
-**Code Reference:** `PasswordChangeRequest.java` *(to be implemented)*
-
-
----
-
-
-### PasswordPolicyStatus
-
-**Password Policy Status Model**: Contains password policy validation results.
-
-```java
-public class PasswordPolicyStatus {
-
-    private boolean isLegacyUser;
-    private boolean isExpired;
-    private boolean violatesComplexity;
-    private Date lastPasswordUpdate;
-    private Date passwordExpiration;
-    private List<String> complexityViolations;
-
-    // Constructors, getters, setters...
-}
-```
-
-**Fields:**
-- `isLegacyUser`: True if `last_password_update` is null (exempt from expiration)
-- `isExpired`: True if password is older than 6 months
-- `violatesComplexity`: True if password doesn't meet current complexity requirements
-- `lastPasswordUpdate`: Timestamp of last password change
-- `passwordExpiration`: Calculated expiration date (lastPasswordUpdate + 6 months)
-- `complexityViolations`: List of specific complexity requirements not met
-
-**Example:**
-```json
-{
-  "isLegacyUser": false,
-  "isExpired": true,
-  "violatesComplexity": false,
-  "lastPasswordUpdate": "2023-03-15T10:30:00Z",
-  "passwordExpiration": "2023-09-15T10:30:00Z",
-  "complexityViolations": []
-}
-```
-
-**Code Reference:** `PasswordPolicyStatus.java` *(to be implemented)*
-
-
----
-
 ### PersistableCustomer
 
 
@@ -1716,30 +1148,6 @@ jwt.expiration=3600
 authToken.header=Authorization
 ```
 
-
-### Password Policy Configuration
-
-```properties
-# Password Expiration Period (in days)
-password.expiration.days=180  # 6 months
-
-# Password History Size
-password.history.size=5
-
-# Password Complexity Requirements
-password.complexity.minLength=8
-password.complexity.requireLowercase=true
-password.complexity.requireUppercase=true
-password.complexity.requireDigit=true
-password.complexity.requireSpecialChar=true
-password.complexity.specialChars=!@#$%^&*()_+-=[]{}|;:,.<>?
-
-# Legacy User Support
-password.policy.legacyUserExemption=true
-password.policy.checkComplexityOnLogin=false  # Only check expiration on login
-```
-
-
 **Configuration Details:**
 
 | Property | Type | Description | Example |
@@ -1747,13 +1155,6 @@ password.policy.checkComplexityOnLogin=false  # Only check expiration on login
 | `jwt.secret` | String | Secret key for signing JWT tokens (HMAC SHA-512) | `MySecretKey123...` |
 | `jwt.expiration` | Long | Token expiration time in seconds | `3600` (1 hour) |
 | `authToken.header` | String | HTTP header name for token | `Authorization` |
-
-
-| `password.expiration.days` | Integer | Password expiration period in days | `180` (6 months) |
-| `password.history.size` | Integer | Number of previous passwords to track | `5` |
-| `password.complexity.minLength` | Integer | Minimum password length | `8` |
-| `password.policy.legacyUserExemption` | Boolean | Exempt legacy users from expiration | `true` |
-
 
 **Security Best Practices:**
 
@@ -1772,18 +1173,6 @@ password.policy.checkComplexityOnLogin=false  # Only check expiration on login
    - Implement token refresh to extend sessions without re-login
    - Grace period: 200 seconds (configurable)
 
-
-4. **Password Expiration**:
-   - 6-month expiration balances security and usability
-   - Legacy users (existing users during migration) are exempt
-   - First password change activates full policy enforcement
-
-5. **Password History**:
-   - Tracking last 5 passwords prevents pattern reuse
-   - Hashed using same BCrypt algorithm as passwords
-   - Automatically maintains only most recent 5 entries
-
-
 **Environment Variable Configuration:**
 
 ```bash
@@ -1792,14 +1181,6 @@ export JWT_EXPIRATION=3600
 export AUTH_TOKEN_HEADER="Authorization"
 ```
 
-
-```bash
-export PASSWORD_EXPIRATION_DAYS=180
-export PASSWORD_HISTORY_SIZE=5
-export PASSWORD_MIN_LENGTH=8
-```
-
-
 **Docker Configuration:**
 
 ```dockerfile
@@ -1807,13 +1188,6 @@ ENV JWT_SECRET=YourSecureSecretKeyHere
 ENV JWT_EXPIRATION=3600
 ENV AUTH_TOKEN_HEADER=Authorization
 ```
-
-
-```dockerfile
-ENV PASSWORD_EXPIRATION_DAYS=180
-ENV PASSWORD_HISTORY_SIZE=5
-```
-
 
 **Note**: These properties are referenced using Spring's `@Value` annotation:
 ```java
@@ -1826,16 +1200,6 @@ private Long expiration;
 @Value("${authToken.header}")
 private String tokenHeader;
 ```
-
-
-```java
-@Value("${password.expiration.days}")
-private Integer passwordExpirationDays;
-
-@Value("${password.history.size}")
-private Integer passwordHistorySize;
-```
-
 
 **Code Reference:** `JWTTokenUtil.java:50-54`
 
@@ -2039,175 +1403,6 @@ public abstract class AbstractCustomerServices implements UserDetailsService {
 
 ---
 
-
-### Password Policy Service
-
-The `PasswordPolicyService` handles all password policy enforcement, history management, and validation.
-
-**Service Interface:**
-
-```java
-@Service
-public class PasswordPolicyServiceImpl implements PasswordPolicyService {
-
-    @Inject
-    private PasswordHistoryRepository passwordHistoryRepository;
-
-    @Inject
-    private PasswordEncoder passwordEncoder;
-
-    @Value("${password.expiration.days}")
-    private Integer passwordExpirationDays;
-
-    @Value("${password.history.size}")
-    private Integer passwordHistorySize;
-
-    @Value("${password.policy.legacyUserExemption}")
-    private Boolean legacyUserExemption;
-
-    /**
-     * Check password policy for a user
-     */
-    @Override
-    public PasswordPolicyStatus checkPolicy(JWTUser user) {
-        PasswordPolicyStatus status = new PasswordPolicyStatus();
-
-        // Check if legacy user (exempt from expiration)
-        if (user.getLastPasswordResetDate() == null && legacyUserExemption) {
-            status.setLegacyUser(true);
-            status.setExpired(false);
-            status.setViolatesComplexity(false);
-            return status;
-        }
-
-        // Check password expiration
-        if (user.getLastPasswordResetDate() != null) {
-            Date expirationDate = calculateExpirationDate(user.getLastPasswordResetDate());
-            status.setExpired(new Date().after(expirationDate));
-            status.setPasswordExpiration(expirationDate);
-        }
-
-        status.setLastPasswordUpdate(user.getLastPasswordResetDate());
-        status.setLegacyUser(false);
-
-        return status;
-    }
-
-    /**
-     * Validate password complexity
-     */
-    @Override
-    public List<String> validatePasswordComplexity(String password) {
-        List<String> violations = new ArrayList<>();
-
-        if (password.length() < 8) {
-            violations.add("Password must be at least 8 characters long");
-        }
-
-        if (!password.matches(".*[a-z].*")) {
-            violations.add("Password must contain at least one lowercase letter");
-        }
-
-        if (!password.matches(".*[A-Z].*")) {
-            violations.add("Password must contain at least one uppercase letter");
-        }
-
-        if (!password.matches(".*\\d.*")) {
-            violations.add("Password must contain at least one digit");
-        }
-
-        if (!password.matches(".*[!@#$%^&*()_+\\-=\\[\\]{}|;:,.<>?].*")) {
-            violations.add("Password must contain at least one special character");
-        }
-
-        return violations;
-    }
-
-    /**
-     * Check if password exists in user's history
-     */
-    @Override
-    public boolean isPasswordInHistory(Long userId, String newPassword) {
-        List<PasswordHistory> history = passwordHistoryRepository
-            .findTopNByUserIdOrderByChangedDateDesc(userId, passwordHistorySize);
-
-        for (PasswordHistory entry : history) {
-            if (passwordEncoder.matches(newPassword, entry.getPasswordHash())) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Add password to history and maintain history size
-     */
-    @Override
-    public void addToPasswordHistory(Long userId, String passwordHash) {
-        // Add new entry
-        PasswordHistory newEntry = new PasswordHistory();
-        newEntry.setUserId(userId);
-        newEntry.setPasswordHash(passwordHash);
-        newEntry.setChangedDate(new Date());
-        passwordHistoryRepository.save(newEntry);
-
-        // Remove old entries beyond history size
-        List<PasswordHistory> history = passwordHistoryRepository
-            .findAllByUserIdOrderByChangedDateDesc(userId);
-
-        if (history.size() > passwordHistorySize) {
-            List<PasswordHistory> toRemove = history.subList(passwordHistorySize, history.size());
-            passwordHistoryRepository.deleteAll(toRemove);
-        }
-    }
-
-    /**
-     * Calculate password expiration date
-     */
-    private Date calculateExpirationDate(Date lastPasswordUpdate) {
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(lastPasswordUpdate);
-        calendar.add(Calendar.DAY_OF_YEAR, passwordExpirationDays);
-        return calendar.getTime();
-    }
-
-    /**
-     * Log password change event
-     */
-    @Override
-    public void logPasswordChange(Long userId, String username) {
-        LOGGER.info("Password changed for user: {} (ID: {})", username, userId);
-        // Additional audit logging implementation
-    }
-}
-```
-
-**Key Methods:**
-
-1. **checkPolicy(JWTUser)**: Validates password expiration and complexity
-2. **validatePasswordComplexity(String)**: Checks password against complexity rules
-3. **isPasswordInHistory(Long, String)**: Verifies password not in last 5
-4. **addToPasswordHistory(Long, String)**: Adds password to history and maintains size limit
-5. **logPasswordChange(Long, String)**: Audit logging for password changes
-
-**Database Schema (PasswordHistory):**
-
-```sql
-CREATE TABLE password_history (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    user_id BIGINT NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    changed_date TIMESTAMP NOT NULL,
-    INDEX idx_user_changed (user_id, changed_date DESC)
-);
-```
-
-**Code Reference:** `PasswordPolicyServiceImpl.java` *(to be implemented)*
-
-
----
-
 ### Authentication Providers
 
 
@@ -2365,58 +1560,7 @@ HTTP/1.1 500 Internal Server Error
 
 ---
 
-
-#### 3. Password Change Required (403 Forbidden)
-
-**Cause:** Password expired or doesn't meet current policy requirements
-
-**Login Error Response:**
-```java
-} catch(PasswordExpiredException e) {
-    return new ResponseEntity<>(
-        "{\"requiresPasswordChange\":true,\"reason\":\"expired\",\"message\":\"Your password has expired\"}",
-        HttpStatus.FORBIDDEN
-    );
-} catch(PasswordPolicyException e) {
-    return new ResponseEntity<>(
-        "{\"requiresPasswordChange\":true,\"reason\":\"policy_violation\",\"message\":\"Password doesn't meet requirements\"}",
-        HttpStatus.FORBIDDEN
-    );
-}
-```
-
-**Response:**
-```http
-HTTP/1.1 403 Forbidden
-Content-Type: application/json
-
-{
-  "requiresPasswordChange": true,
-  "reason": "expired",
-  "message": "Your password has expired. Please change your password to continue."
-}
-```
-
-or
-
-```http
-HTTP/1.1 403 Forbidden
-Content-Type: application/json
-
-{
-  "requiresPasswordChange": true,
-  "reason": "policy_violation",
-  "message": "Your password does not meet current security requirements."
-}
-```
-
-**Client Handling:**
-Client should redirect user to mandatory password change interface when receiving this response.
-
-
----
-
-#### 4. Registration Conflict (409 Conflict)
+#### 3. Registration Conflict (409 Conflict)
 
 **Cause:** Customer email already registered
 
@@ -2438,7 +1582,7 @@ Content-Type: application/json
 
 ---
 
-#### 5. Validation Errors (400 Bad Request)
+#### 4. Validation Errors (400 Bad Request)
 
 **Cause:** Missing required fields or invalid data
 
@@ -2465,43 +1609,9 @@ Content-Type: application/json
 "Requires customer Country code"
 ```
 
-
-**Example: Password complexity violation**
-```http
-HTTP/1.1 400 Bad Request
-Content-Type: application/json
-
-{
-  "errors": [
-    {
-      "field": "password",
-      "code": "INSUFFICIENT_UPPERCASE",
-      "message": "Password must contain at least 1 uppercase character"
-    },
-    {
-      "field": "password",
-      "code": "INSUFFICIENT_SPECIAL",
-      "message": "Password must contain at least 1 special character"
-    }
-  ]
-}
-```
-
-**Example: Password in history**
-```http
-HTTP/1.1 400 Bad Request
-Content-Type: application/json
-
-{
-  "error": "password_reused",
-  "message": "You cannot reuse any of your last 5 passwords"
-}
-```
-
-
 ---
 
-#### 6. Token Refresh Errors (400 Bad Request)
+#### 5. Token Refresh Errors (400 Bad Request)
 
 **Cause:** Token cannot be refreshed (expired beyond grace period)
 
@@ -2521,7 +1631,7 @@ HTTP/1.1 400 Bad Request
 
 ---
 
-#### 7. Password Change Errors
+#### 6. Password Change Errors
 
 **Cause: Customer not found**
 ```http
@@ -2546,7 +1656,7 @@ Content-Type: application/json
 
 ---
 
-#### 8. Unauthorized Access (401 Unauthorized)
+#### 7. Unauthorized Access (401 Unauthorized)
 
 **Cause:** Missing or invalid JWT token for protected endpoint
 
@@ -2565,7 +1675,7 @@ WWW-Authenticate: Basic realm="api-customer-realm"
 
 ---
 
-#### 9. Forbidden Access (403 Forbidden)
+#### 8. Forbidden Access (403 Forbidden)
 
 **Cause:** Valid token but insufficient permissions
 
@@ -2657,16 +1767,6 @@ public PasswordEncoder passwordEncoder() {
 - ✅ Implement account lockout after failed attempts
 - ❌ Never log passwords
 - ❌ Never return password in API responses
-
-
-**Enhanced Password Validation**:
-- ✅ Enforce complexity requirements (uppercase, lowercase, digit, special character)
-- ✅ Track password history (last 5 passwords)
-- ✅ Implement 6-month password expiration
-- ✅ Provide real-time password validation feedback
-- ✅ Legacy user exemption for backward compatibility
-- ✅ Audit log all password changes
-
 
 **Password Validation (Passay):**
 Shopizer uses Passay for password validation. Configure rules in:
@@ -2803,36 +1903,12 @@ LOGGER.warn("Invalid token from IP: {}", request.getRemoteAddr());
 LOGGER.warn("Multiple failed login attempts from IP: {}", ipAddress);
 ```
 
-
-**Enhanced Logging for Password Policy**:
-
-```java
-// ✅ Log password changes
-LOGGER.info("Password changed for user: {} (ID: {})", username, userId);
-
-// ✅ Log password expiration warnings
-LOGGER.info("Password expired for user: {} (expired on: {})", username, expirationDate);
-
-// ✅ Log password policy violations
-LOGGER.warn("Password complexity violation for user: {}", username);
-
-// ✅ Log password history violations
-LOGGER.warn("Password reuse attempted for user: {}", username);
-```
-
-
 **Monitor for:**
 - Failed login attempts (potential brute-force)
 - Token validation failures
 - Unusual access patterns
 - Account lockouts
 - Password reset requests
-
-
-- Password expiration events
-- Password change failures
-- Password policy violations
-
 
 ---
 
@@ -2936,182 +2012,8 @@ public class AuditLog {
 - Account modifications
 - Suspicious activities
 
-
-**Enhanced Audit Trail for Password Policy**:
-
-```java
-@Entity
-public class PasswordChangeAuditLog {
-    private Long id;
-    private Long userId;
-    private String username;
-    private Date changeDate;
-    private String changedBy; // USER or ADMIN
-    private String reason; // VOLUNTARY, EXPIRED, POLICY_VIOLATION
-    private String ipAddress;
-    private boolean success;
-}
-```
-
-**Track:**
-- All password change attempts (success/failure)
-- Mandatory vs. voluntary password changes
-- Password expiration events
-- Password policy violations
-- Password history violations
-
-
 **Code Reference:** `AuthenticationTokenFilter.java:65-72` (IP capture)
 
-
-
----
-
-
-### Password Policy Migration Strategy
-
-When deploying the enhanced password policy system, follow this migration strategy to ensure backward compatibility with existing users:
-
-#### Pre-Deployment Preparation
-
-**1. Database Schema Updates**
-
-Add new columns to user/customer tables:
-
-```sql
-ALTER TABLE CUSTOMER ADD COLUMN last_password_update DATETIME NULL DEFAULT NULL;
-ALTER TABLE CUSTOMER ADD COLUMN password_expiration DATETIME NULL DEFAULT NULL;
-
-CREATE TABLE PASSWORD_HISTORY (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    user_id BIGINT NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    changed_date DATETIME NOT NULL,
-    INDEX idx_user_changed (user_id, changed_date DESC)
-);
-```
-
-**2. Set Legacy User Status**
-
-Before deployment, mark all existing users as legacy users:
-
-```sql
--- Mark all existing users as legacy (exempt from password expiration)
-UPDATE CUSTOMER SET last_password_update = NULL WHERE last_password_update IS NULL OR last_password_update = '';
-
--- Clear password_expiration for all existing users
-UPDATE CUSTOMER SET password_expiration = NULL;
-```
-
-#### Post-Deployment Behavior
-
-**Legacy Users (last_password_update = NULL):**
-- ✅ Can login with existing passwords (no expiration check)
-- ✅ Can continue using the system without immediate password change
-- ❌ Not subject to 6-month expiration rule
-- ❌ Password history not checked during first password change
-
-**After First Password Change:**
-- ✅ `last_password_update` set to current timestamp
-- ✅ `password_expiration` set to 6 months from now
-- ✅ Password added to password history
-- ✅ Full policy enforcement begins (expiration, history checks)
-
-#### Gradual Enforcement Options
-
-**Option 1: Voluntary Adoption (Recommended)**
-- Legacy users exempt indefinitely
-- Users change passwords voluntarily or when they forget
-- Natural migration over time
-
-**Option 2: Phased Enforcement**
-- Set grace period (e.g., 90 days)
-- After grace period, require all users to change passwords
-- Display warning banner for legacy users
-
-**Option 3: Immediate Enforcement with Exception**
-- Enforce policy for all new logins
-- Allow one-time legacy login to change password
-- Require password change on next login
-
-#### Communication Plan
-
-**User Notifications:**
-
-1. **Email Notification** (sent to all existing users):
-   ```
-   Subject: Enhanced Security: New Password Requirements
-
-   We've enhanced our password security to better protect your account.
-
-   What's New:
-   - Stronger password requirements (uppercase, lowercase, numbers, special characters)
-   - Password expiration after 6 months
-   - Prevention of password reuse (last 5 passwords)
-
-   Action Required:
-   - Your current password will continue to work
-   - When you change your password next, new requirements will apply
-   - We recommend updating your password at your convenience
-
-   Questions? Contact support@example.com
-   ```
-
-2. **In-App Banner** (displayed to legacy users):
-   ```
-   ℹ️ Your account is using our previous password policy.
-   For enhanced security, consider updating your password.
-   [Update Password]
-   ```
-
-#### Monitoring Migration Progress
-
-Track migration progress with this query:
-
-```sql
-SELECT
-    COUNT(*) as total_users,
-    SUM(CASE WHEN last_password_update IS NULL THEN 1 ELSE 0 END) as legacy_users,
-    SUM(CASE WHEN last_password_update IS NOT NULL THEN 1 ELSE 0 END) as migrated_users,
-    ROUND(SUM(CASE WHEN last_password_update IS NOT NULL THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) as migration_percentage
-FROM CUSTOMER;
-```
-
-#### Rollback Plan
-
-If issues arise, rollback is simple:
-
-1. **Disable Policy Enforcement:**
-   ```properties
-   password.policy.legacyUserExemption=true
-   password.policy.checkComplexityOnLogin=false
-   ```
-
-2. **Revert Database (if needed):**
-   ```sql
-   -- Mark all users as legacy again
-   UPDATE CUSTOMER SET last_password_update = NULL;
-
-   -- Clear password history (if desired)
-   TRUNCATE TABLE PASSWORD_HISTORY;
-   ```
-
-3. **Redeploy Previous Version**
-
-#### Testing Checklist
-
-Before deployment:
-
-- [ ] Test legacy user login (should succeed without policy check)
-- [ ] Test new user registration (should enforce complexity)
-- [ ] Test legacy user password change (should enforce policy after change)
-- [ ] Test password history (ensure last 5 passwords rejected)
-- [ ] Test password expiration (after 6 months)
-- [ ] Test mandatory password change flow
-- [ ] Verify database migration scripts
-- [ ] Test rollback procedure
-- [ ] Load test password validation performance
-- [ ] Verify audit logging works correctly
 
 
 ---
@@ -3194,127 +2096,6 @@ curl -X POST http://localhost:8080/api/v1/customer/login \
   "token": "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJjdXN0b21lckBleGFtcGxlLmNvbSIsImF1ZCI6ImFwaSIsImlhdCI6MTYzMjQyNzIwMCwiZXhwIjoxNjMyNDMwODAwfQ.signature"
 }
 ```
-
----
-
-
-#### Customer Login (Password Expired)
-
-```bash
-curl -X POST http://localhost:8080/api/v1/customer/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "olduser@example.com",
-    "password": "ExpiredPass123"
-  }'
-```
-
-**Expected Response:**
-```json
-{
-  "requiresPasswordChange": true,
-  "reason": "expired",
-  "message": "Your password has expired. Please change your password to continue."
-}
-```
-
-**HTTP Status:** 403 Forbidden
-
----
-
-#### Mandatory Password Change
-
-```bash
-curl -X POST http://localhost:8080/api/v1/auth/change-password \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <token>" \
-  -d '{
-    "username": "olduser@example.com",
-    "newPassword": "NewSecurePass123!",
-    "repeatPassword": "NewSecurePass123!"
-  }'
-```
-
-**Expected Response:**
-```json
-{
-  "success": true,
-  "message": "Password changed successfully"
-}
-```
-
-**HTTP Status:** 200 OK
-
----
-
-#### Password Change with Validation Error
-
-```bash
-curl -X POST http://localhost:8080/api/v1/auth/change-password \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <token>" \
-  -d '{
-    "username": "user@example.com",
-    "newPassword": "weak",
-    "repeatPassword": "weak"
-  }'
-```
-
-**Expected Response:**
-```json
-{
-  "errors": [
-    {
-      "field": "password",
-      "code": "TOO_SHORT",
-      "message": "Password must be at least 8 characters long"
-    },
-    {
-      "field": "password",
-      "code": "INSUFFICIENT_UPPERCASE",
-      "message": "Password must contain at least 1 uppercase character"
-    },
-    {
-      "field": "password",
-      "code": "INSUFFICIENT_DIGIT",
-      "message": "Password must contain at least 1 digit"
-    },
-    {
-      "field": "password",
-      "code": "INSUFFICIENT_SPECIAL",
-      "message": "Password must contain at least 1 special character"
-    }
-  ]
-}
-```
-
-**HTTP Status:** 400 Bad Request
-
----
-
-#### Password Change with History Violation
-
-```bash
-curl -X POST http://localhost:8080/api/v1/auth/change-password \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <token>" \
-  -d '{
-    "username": "user@example.com",
-    "newPassword": "PreviousPass123!",
-    "repeatPassword": "PreviousPass123!"
-  }'
-```
-
-**Expected Response:**
-```json
-{
-  "error": "password_reused",
-  "message": "You cannot reuse any of your last 5 passwords"
-}
-```
-
-**HTTP Status:** 400 Bad Request
-
 
 ---
 
@@ -3450,117 +2231,7 @@ curl -X GET http://localhost:8080/api/v1/auth/refresh \
 
 ---
 
-
-#### Issue 4: Password Change Required Error
-
-**Symptom:**
-```json
-{
-  "requiresPasswordChange": true,
-  "reason": "expired",
-  "message": "Your password has expired"
-}
-```
-
-**Cause:**
-Password is older than 6 months and user is not a legacy user
-
-**Solution:**
-1. Redirect user to mandatory password change page
-2. User must change password before accessing system
-3. New password must meet complexity requirements
-4. Cannot reuse last 5 passwords
-
-**Debug Steps:**
-1. Check `last_password_update` in database
-2. Verify password expiration date calculation
-3. Confirm user is not legacy user (last_password_update != null)
-
----
-
-#### Issue 5: Password Complexity Validation Fails
-
-**Symptom:**
-```json
-{
-  "errors": [
-    {
-      "field": "password",
-      "message": "Password must contain at least one uppercase letter"
-    }
-  ]
-}
-```
-
-**Cause:**
-New password doesn't meet complexity requirements
-
-**Solution:**
-Ensure password meets all requirements:
-- Minimum 8 characters
-- At least 1 lowercase letter (a-z)
-- At least 1 uppercase letter (A-Z)
-- At least 1 digit (0-9)
-- At least 1 special character (!@#$%^&*()_+-=[]{}|;:,.<>?)
-
-**Debug Steps:**
-1. Test password against each requirement individually
-2. Check PasswordValidator configuration
-3. Verify special character set matches configuration
-
----
-
-#### Issue 6: Password History Violation
-
-**Symptom:**
-```json
-{
-  "error": "password_reused",
-  "message": "You cannot reuse any of your last 5 passwords"
-}
-```
-
-**Cause:**
-New password matches one of the last 5 passwords
-
-**Solution:**
-Choose a different password that hasn't been used recently
-
-**Debug Steps:**
-1. Query password_history table for user
-2. Verify BCrypt comparison logic
-3. Check password_history size configuration
-4. Ensure password hashes are stored correctly
-
----
-
-#### Issue 7: Legacy User Not Exempt from Expiration
-
-**Symptom:**
-Legacy user (existing before migration) forced to change password on login
-
-**Cause:**
-`last_password_update` field not set to NULL during migration
-
-**Solution:**
-```sql
--- Mark user as legacy
-UPDATE CUSTOMER SET last_password_update = NULL WHERE id = <user_id>;
-
--- Or mark all existing users as legacy
-UPDATE CUSTOMER SET last_password_update = NULL
-WHERE created_date < '<migration_date>';
-```
-
-**Debug Steps:**
-1. Check `last_password_update` value in database
-2. Verify migration script ran successfully
-3. Check `password.policy.legacyUserExemption` configuration
-
-
----
-
-#### Issue 8: CORS Errors
+#### Issue 4: CORS Errors
 
 **Symptom:**
 ```
@@ -3577,7 +2248,7 @@ response.setHeader("Access-Control-Allow-Credentials", "true");
 
 ---
 
-#### Issue 9: Token Not Validated
+#### Issue 5: Token Not Validated
 
 **Symptom:**
 Protected endpoint returns 401 even with valid token
@@ -3596,7 +2267,7 @@ LOGGER.debug("Username: {}", jwtTokenUtil.getUsernameFromToken(token));
 
 ---
 
-#### Issue 10: Customer Not Found by Username
+#### Issue 6: Customer Not Found by Username
 
 **Symptom:**
 ```
@@ -3614,7 +2285,7 @@ customer.setNick(customer.getEmailAddress());
 
 ---
 
-#### Issue 11: Password Validation Fails
+#### Issue 7: Password Validation Fails
 
 **Symptom:**
 Registration fails with validation errors
@@ -3632,7 +2303,7 @@ Review password requirements:
 
 ---
 
-#### Issue 12: Multiple SecurityContext Issues
+#### Issue 8: Multiple SecurityContext Issues
 
 **Symptom:**
 Admin token works for customer endpoints or vice versa
@@ -3656,7 +2327,7 @@ if(requestUrl.contains("/api/v1/private")) {
 
 ---
 
-#### Issue 13: Token Refresh Always Succeeds
+#### Issue 9: Token Refresh Always Succeeds
 
 **Symptom:**
 Token refresh works even after password change
@@ -3679,7 +2350,7 @@ return !isCreatedBeforeLastPasswordResetWithGrace(created, lastPasswordReset)
 
 ---
 
-#### Issue 14: Database Connection Issues
+#### Issue 10: Database Connection Issues
 
 **Symptom:**
 ```
@@ -3711,14 +2382,9 @@ curl http://localhost:8080/actuator/health
 - [JWT.io - JWT Debugger](https://jwt.io/)
 - [OWASP Authentication Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html)
 
-
-- [OWASP Password Storage Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html)
-- [NIST Password Guidelines](https://pages.nist.gov/800-63-3/sp800-63b.html)
-
-
 ---
 
-**Document Version:** 2.0
-**Last Updated:** 2025-10-17
+**Document Version:** 1.0
+**Last Updated:** 2025-10-15
 **Author:** Claude Code
 **Status:** Approved
