@@ -1,6 +1,6 @@
 package com.salesmanager.core.business.services.system.optin;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 
 import org.springframework.stereotype.Service;
 

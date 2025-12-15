@@ -2,7 +2,7 @@ package com.salesmanager.shop.model.marketplace;
 
 import java.io.Serializable;
 
-import javax.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotEmpty;
 
 public class SignupStore implements Serializable {
 

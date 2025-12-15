@@ -2,7 +2,7 @@ package com.salesmanager.test.references;
 
 import java.util.List;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 
 import org.junit.Ignore;
 import org.junit.runner.RunWith;

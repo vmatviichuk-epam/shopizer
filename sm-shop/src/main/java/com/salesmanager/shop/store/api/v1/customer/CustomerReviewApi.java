@@ -2,8 +2,8 @@ package com.salesmanager.shop.store.api.v1.customer;
 
 import java.util.List;
 
-import javax.inject.Inject;
-import javax.validation.Valid;
+import jakarta.inject.Inject;
+import jakarta.validation.Valid;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

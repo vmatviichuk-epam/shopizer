@@ -3,7 +3,7 @@ package com.salesmanager.core.business.services.merchant;
 import java.util.List;
 import java.util.Optional;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 
 import org.jsoup.helper.Validate;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -2,7 +2,7 @@ package com.salesmanager.shop.model.store;
 
 import java.io.Serializable;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 import com.salesmanager.shop.model.references.MeasureUnit;
 import com.salesmanager.shop.model.references.WeightUnit;

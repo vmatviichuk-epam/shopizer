@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 
 import org.jsoup.helper.Validate;
 import org.springframework.beans.factory.annotation.Autowired;

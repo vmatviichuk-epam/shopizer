@@ -11,7 +11,7 @@ orbs:
 executors:
   shopizer-ci:
     docker:
-      - image: shopizerecomm/ci:java11
+      - image: cimg/openjdk:21.0
         auth:
           username: shopizerecomm
           password: $DOCKERHUB_PASSWORD  

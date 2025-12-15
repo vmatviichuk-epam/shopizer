@@ -5,7 +5,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 
 import org.jsoup.helper.Validate;
 import org.springframework.security.crypto.password.PasswordEncoder;

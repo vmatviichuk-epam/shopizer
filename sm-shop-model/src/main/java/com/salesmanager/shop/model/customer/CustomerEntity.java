@@ -2,9 +2,9 @@ package com.salesmanager.shop.model.customer;
 
 import java.io.Serializable;
 
-import javax.validation.Valid;
-import javax.validation.constraints.Email;
-import javax.validation.constraints.NotEmpty;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotEmpty;
 
 import org.springframework.validation.annotation.Validated;
 

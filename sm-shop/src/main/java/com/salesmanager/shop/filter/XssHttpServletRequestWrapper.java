@@ -1,7 +1,7 @@
 package com.salesmanager.shop.filter;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletRequestWrapper;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
 
 import com.salesmanager.shop.utils.SanitizeUtils;
 

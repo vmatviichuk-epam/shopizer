@@ -7,7 +7,7 @@ import static com.salesmanager.shop.constants.Constants.KEY_PINTEREST_PAGE_URL;
 
 import java.util.Optional;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;

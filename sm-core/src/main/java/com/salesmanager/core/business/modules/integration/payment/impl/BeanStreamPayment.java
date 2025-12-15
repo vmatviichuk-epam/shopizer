@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.StringTokenizer;
 import java.util.UUID;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;

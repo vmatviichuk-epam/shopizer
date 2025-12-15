@@ -1,6 +1,6 @@
 package com.salesmanager.core.business.services.reference.currency;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 
 import org.springframework.stereotype.Service;
 

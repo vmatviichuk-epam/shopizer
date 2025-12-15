@@ -2,7 +2,7 @@ package com.salesmanager.core.business.services.tax;
 
 import java.util.List;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 
 import org.jsoup.helper.Validate;
 import org.springframework.stereotype.Service;

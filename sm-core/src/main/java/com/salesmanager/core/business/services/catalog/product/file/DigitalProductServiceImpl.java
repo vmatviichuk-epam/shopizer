@@ -2,7 +2,7 @@ package com.salesmanager.core.business.services.catalog.product.file;
 
 import java.util.Optional;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 import com.salesmanager.core.business.exception.ServiceException;

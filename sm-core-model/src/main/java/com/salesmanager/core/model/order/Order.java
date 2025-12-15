@@ -22,7 +22,7 @@ import javax.persistence.Table;
 import javax.persistence.TableGenerator;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 
 import org.hibernate.annotations.OrderBy;
 import org.hibernate.annotations.Type;

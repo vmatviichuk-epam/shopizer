@@ -3,7 +3,7 @@ package com.salesmanager.test.utils;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 
 import org.junit.Ignore;
 import org.junit.Test;
