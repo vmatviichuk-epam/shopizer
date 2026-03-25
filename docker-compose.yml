@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: shopizer-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: SALESMANAGER
+      MYSQL_USER: shopizer
+      MYSQL_PASSWORD: very-long-shopizer-password
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-ppassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - shopizer-network
+
+  shopizer-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: shopizer-app
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=SALESMANAGER
+      - DB_USER=root
+      - DB_PASSWORD=password
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - shopizer-network
+    restart: on-failure
+
+  shopizer-admin:
+    build:
+      context: ../shopizer-admin
+      dockerfile: Dockerfile.local
+    container_name: shopizer-admin
+    ports:
+      - "82:80"
+    environment:
+      - APP_BASE_URL=http://localhost:8080/api
+    depends_on:
+      - shopizer-app
+    networks:
+      - shopizer-network
+    restart: unless-stopped
+
+  shopizer-shop:
+    build:
+      context: ../shopizer-shop-reactjs
+      dockerfile: Dockerfile
+    container_name: shopizer-shop
+    ports:
+      - "80:80"
+    environment:
+      - APP_BASE_URL=http://localhost:8080
+    depends_on:
+      - shopizer-app
+    networks:
+      - shopizer-network
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+
+networks:
+  shopizer-network:
+    driver: bridge
