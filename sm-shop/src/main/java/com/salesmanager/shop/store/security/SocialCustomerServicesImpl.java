@@ -1,6 +1,6 @@
 package com.salesmanager.shop.store.security;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;

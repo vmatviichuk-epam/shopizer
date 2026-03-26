@@ -1,6 +1,6 @@
 package com.salesmanager.shop.store.security.customer;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;

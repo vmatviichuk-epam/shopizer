@@ -11,7 +11,7 @@ import com.salesmanager.core.model.payments.TransactionType;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;

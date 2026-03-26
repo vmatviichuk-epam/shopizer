@@ -1,7 +1,7 @@
 package com.salesmanager.shop.store.api.v1.product;
 
 import java.util.List;
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;

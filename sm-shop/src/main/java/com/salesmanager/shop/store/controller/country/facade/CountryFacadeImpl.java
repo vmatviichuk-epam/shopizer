@@ -12,7 +12,7 @@ import com.salesmanager.shop.store.api.exception.ConversionRuntimeException;
 import com.salesmanager.shop.store.api.exception.ServiceRuntimeException;
 import java.util.List;
 import java.util.stream.Collectors;
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 import org.springframework.stereotype.Service;
 
 @Service

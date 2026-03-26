@@ -1,6 +1,6 @@
 package com.salesmanager.shop.store.api.v1.tax;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

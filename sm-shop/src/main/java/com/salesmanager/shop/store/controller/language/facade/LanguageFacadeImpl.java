@@ -6,7 +6,7 @@ import com.salesmanager.core.model.reference.language.Language;
 import com.salesmanager.shop.store.api.exception.ResourceNotFoundException;
 import com.salesmanager.shop.store.api.exception.ServiceRuntimeException;
 import java.util.List;
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 import org.springframework.stereotype.Service;
 
 @Service

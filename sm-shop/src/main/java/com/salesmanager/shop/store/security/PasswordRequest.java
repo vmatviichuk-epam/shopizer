@@ -1,6 +1,6 @@
 package com.salesmanager.shop.store.security;
 
-import javax.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotEmpty;
 
 public class PasswordRequest extends AuthenticationRequest {
 

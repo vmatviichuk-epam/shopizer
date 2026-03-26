@@ -28,11 +28,7 @@
 			<artifactId>spring-boot-starter-data-jpa</artifactId>
 		</dependency>
 
-		<!-- https://mvnrepository.com/artifact/org.hibernate/hibernate-ehcache -->
-		<dependency>
-			<groupId>org.hibernate</groupId>
-			<artifactId>hibernate-ehcache</artifactId>
-		</dependency>
+		<!-- Hibernate 6.x uses different caching mechanism, ehcache integration removed -->
 
 		<!-- sm-core-model -->
 		<dependency>
@@ -162,10 +158,10 @@
 			<artifactId>spring-context-support</artifactId>
 		</dependency>
 
-		<!-- https://mvnrepository.com/artifact/org.apache.httpcomponents/httpclient -->
+		<!-- https://mvnrepository.com/artifact/org.apache.httpcomponents.client5/httpclient5 -->
 		<dependency>
-			<groupId>org.apache.httpcomponents</groupId>
-			<artifactId>httpclient</artifactId>
+			<groupId>org.apache.httpcomponents.client5</groupId>
+			<artifactId>httpclient5</artifactId>
 		</dependency>
 
 		<!-- https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-s3 -->

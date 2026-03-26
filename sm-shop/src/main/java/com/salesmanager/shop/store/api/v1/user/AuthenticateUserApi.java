@@ -1,8 +1,8 @@
 package com.salesmanager.shop.store.api.v1.user;
 
-import javax.inject.Inject;
-import javax.servlet.http.HttpServletRequest;
-import javax.validation.Valid;
+import jakarta.inject.Inject;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 
 import org.apache.http.auth.AuthenticationException;
 import org.slf4j.Logger;

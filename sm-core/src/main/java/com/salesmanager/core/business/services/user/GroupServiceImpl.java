@@ -3,7 +3,7 @@ package com.salesmanager.core.business.services.user;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 import org.springframework.stereotype.Service;
 import com.salesmanager.core.business.exception.ServiceException;
 import com.salesmanager.core.business.repositories.user.GroupRepository;

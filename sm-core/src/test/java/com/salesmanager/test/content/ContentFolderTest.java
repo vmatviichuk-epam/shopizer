@@ -2,7 +2,7 @@ package com.salesmanager.test.content;
 
 import java.util.Optional;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 
 import org.junit.Ignore;
 

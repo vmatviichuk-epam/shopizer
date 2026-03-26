@@ -3,7 +3,7 @@ package com.salesmanager.shop.store.security.customer;
 import java.util.Collection;
 import java.util.Date;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;

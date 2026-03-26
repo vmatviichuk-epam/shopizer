@@ -1,6 +1,6 @@
 package com.salesmanager.shop.store.api.v1.configurations;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -3,7 +3,7 @@ package com.salesmanager.shop.model.catalog.product.inventory;
 import java.util.List;
 import com.salesmanager.shop.model.catalog.product.PersistableProductPrice;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 public class PersistableInventory extends InventoryEntity {
 

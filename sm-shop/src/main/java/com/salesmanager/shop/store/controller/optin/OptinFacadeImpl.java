@@ -10,7 +10,7 @@ import com.salesmanager.shop.mapper.optin.ReadableOptinMapper;
 import com.salesmanager.shop.model.system.PersistableOptin;
 import com.salesmanager.shop.model.system.ReadableOptin;
 import com.salesmanager.shop.store.api.exception.ServiceRuntimeException;
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 import org.springframework.stereotype.Service;
 
 @Service

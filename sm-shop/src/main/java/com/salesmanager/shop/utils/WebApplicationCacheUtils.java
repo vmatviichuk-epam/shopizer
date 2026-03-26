@@ -3,7 +3,7 @@ package com.salesmanager.shop.utils;
 import com.salesmanager.core.business.utils.CacheUtils;
 import org.springframework.stereotype.Component;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 
 @Component
 public class WebApplicationCacheUtils {

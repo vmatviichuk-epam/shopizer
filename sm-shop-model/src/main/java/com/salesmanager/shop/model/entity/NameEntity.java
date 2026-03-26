@@ -1,6 +1,6 @@
 package com.salesmanager.shop.model.entity;
 
-import javax.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotEmpty;
 
 /**
  * Used as an input request object where an entity name and or id is important

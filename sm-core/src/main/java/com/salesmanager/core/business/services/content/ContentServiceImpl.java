@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;

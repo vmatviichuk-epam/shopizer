@@ -1,7 +1,7 @@
 package com.salesmanager.core.business.services.system;
 
 import java.util.List;
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.salesmanager.core.business.exception.ServiceException;

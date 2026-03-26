@@ -6,7 +6,7 @@ import java.text.NumberFormat;
 import java.util.List;
 import java.util.Locale;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 
 import org.junit.Assert;
 import org.junit.Ignore;

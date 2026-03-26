@@ -1,6 +1,6 @@
 package com.salesmanager.shop.model.tax;
 
-import javax.validation.constraints.Size;
+import jakarta.validation.constraints.Size;
 
 import com.salesmanager.shop.model.entity.Entity;
 

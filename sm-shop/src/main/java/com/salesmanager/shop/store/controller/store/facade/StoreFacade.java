@@ -2,7 +2,7 @@ package com.salesmanager.shop.store.controller.store.facade;
 
 import java.util.List;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 
 import com.salesmanager.core.model.content.InputContentFile;
 import com.salesmanager.core.model.merchant.MerchantStore;
